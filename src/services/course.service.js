@@ -189,21 +189,17 @@ const getFailedCource = async (studentId) => {
     try {
         const studyStatus = await StudyStatus.findOne({ studentId: studentId });
         const failedCourses = studyStatus.failedCourses;
-        const failedCoursesPromises = failedCourses.map(async (course) => {
-            const failedCource = course.course;
-            return {
-                failedCource,
-            };
-        });
-        const allFailedCourses = await Promise.all(failedCoursesPromises);
+        const failedCoursesList = failedCourses.map(course => course.course);
+        
 
-        if(allFailedCourses){
-            return {
-                errCode: 0,
-                message: 'Get failes cources successfully',
-                data: allFailedCourses,
-            }
-        }
+        const uniqueCoursesMap = new Map(failedCoursesList.map(course => [course._id.toString(), course]));
+        const uniqueCoursesList = Array.from(uniqueCoursesMap.values());
+
+        return {
+            errCode: 0,
+            message: 'Get failed courses successfully',
+            data: uniqueCoursesList,
+        };
     } catch (error) {
         return {
             errCode: 1,
@@ -261,9 +257,10 @@ const registerClass = async (_id, studentId) => {
         const course = await Course.findOne({ _id: clazz.courseId });
         const prerequisiteCourse = course.prerequisiteCourse;
         const studyStatus = await StudyStatus.findOne({studentId: studentId});
-        const studiedCourses = studyStatus.studiedCourses;
+        const studiedCourses = studyStatus.studiedCourses.map(course => course.course._id.toString());
         
-        if(prerequisiteCourse.every(course => studiedCourses.includes(course)) || prerequisiteCourse.length == 0){
+        
+        if (prerequisiteCourse.every(courseId => studiedCourses.includes(courseId)) || prerequisiteCourse.length === 0) {
             const registeredStudents = clazz.registeredStudents;
             const waitingStudents = clazz.waitingStudents;
             if (registeredStudents.includes(studentId))
@@ -425,14 +422,14 @@ const finishCourse = async (_id, studentId, point) => {
                     message: 'Student is not exists'
                 };
             const course = await Course.findOne({ _id: clazz.courseId });
-            const credit = course.credit;
+            const credits = course.credit;
             if(point >= 5) {
                 const studyResult = {
                     course: course,
                     point: point
                 }
                 studyStatus.studiedCourses.push(studyResult);
-                studyStatus.credit += Number(credit)
+                studyStatus.credits += Number(credits)
                 studyStatus.GPA = (studyStatus.GPA + Number(point)) / 2;
                 studyStatus.currentCourses = studyStatus.currentCourses.filter(course => course._id != _id);
                 clazz.registeredStudents = clazz.registeredStudents.filter(id => id !== studentId);
